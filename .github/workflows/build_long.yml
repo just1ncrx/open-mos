@@ -103,7 +103,7 @@ jobs:
             --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
             | awk '{print $2}' | sed 's#/##'); do
             if [ "$run_folder" != "${{ needs.fetch_and_build.outputs.run }}" ]; then
-              aws s3 rm s3://${{ secrets.R2_BUCKET }}/warnmos/$run_folder --recursive \
+              aws s3 rm s3://${{ secrets.R2_BUCKET }}/warnmoslong/$run_folder --recursive \
                 --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
             fi
           done
