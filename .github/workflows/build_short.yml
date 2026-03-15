@@ -75,13 +75,21 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Download OM artifact
         uses: actions/download-artifact@v4
         with:
           name: warnmos-om-short
           path: warnmos/
 
-      - name: build metadata
+      - name: Build Metadata
         run: python scripts/build_metadata.py
 
       - name: Clean old runs on R2
@@ -102,6 +110,14 @@ jobs:
         run: |
           aws s3 sync ./warnmos/ s3://${{ secrets.R2_BUCKET }}/warnmos/${{ needs.fetch_and_build.outputs.run }}/ \
             --exclude "metadata.json" \
+            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Upload Metadata to R2
+        run: |
+          aws s3 cp ./warnmos/metadata.json s3://${{ secrets.R2_BUCKET }}/warnmos/metadata.json \
             --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
