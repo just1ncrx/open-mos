@@ -60,7 +60,7 @@ jobs:
       - name: Build OM + IDX
         run: |
           mkdir -p warnmos
-          python build_warnmos_short.py
+          python scripts/build_om.py
 
       - name: Upload OM artifact
         uses: actions/upload-artifact@v4
