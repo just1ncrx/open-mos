@@ -94,7 +94,7 @@ jobs:
 
       - name: Clean old runs on R2
         run: |
-          for run_folder in $(aws s3 ls s3://${{ secrets.R2_BUCKET }}/warnmos/ \
+          for run_folder in $(aws s3 ls s3://${{ secrets.R2_BUCKET }}/warnmoslong/ \
             --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
             | awk '{print $2}' | sed 's#/##'); do
             if [ "$run_folder" != "${{ needs.fetch_and_build.outputs.run }}" ]; then
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload Metadata to R2
         run: |
-          aws s3 cp ./warnmoslong/metadata.json s3://${{ secrets.R2_BUCKET }}/warnmos/metadata.json \
+          aws s3 cp ./warnmoslong/metadata.json s3://${{ secrets.R2_BUCKET }}/warnmoslong/metadata.json \
             --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
