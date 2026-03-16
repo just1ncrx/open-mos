@@ -20,18 +20,34 @@ INPUT_DIR  = "data/warnmos"
 OUTPUT_DIR = "warnmos"
 CHUNK      = 16
 NX, NY     = 900, 900
-DX, DY     = 1000.0, 1000.0
+DX, DY     = 1000.0, 1000.0   # Meter
+
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # -------------------------------
 # Raster-Koordinaten berechnen
+# FIX: Kugel a=6370040 statt WGS84-Ellipsoid
+# FIX: Korrekter lower-left corner laut DWD RADOLAN-Doku
 # -------------------------------
 def get_grid():
-    proj_ps  = Proj(proj='stere', lat_0=90, lon_0=10, lat_ts=60,
-                    x_0=0, y_0=0, ellps='WGS84')
-    proj_geo = Proj(proj='latlong', datum='WGS84')
+    # RADOLAN verwendet eine Kugel mit R=6370040 m (kein WGS84-Ellipsoid!)
+    proj_ps  = Proj(
+        proj='stere',
+        lat_0=90,
+        lon_0=10,
+        lat_ts=60,
+        x_0=0,
+        y_0=0,
+        a=6370040,
+        b=6370040,
+    )
+    proj_geo = Proj(proj='latlong', a=6370040, b=6370040)
     transformer = Transformer.from_proj(proj_ps, proj_geo, always_xy=True)
-    x0, y0 = proj_ps(3.594, 46.957)
+
+    # Offizieller lower-left corner des RADOLAN 900x900 Gitters (DWD-Doku)
+    # lon=3.5889°E, lat=46.9526°N → Stereographisch in Metern
+    x0, y0 = proj_ps(3.5889, 46.9526)
+
     x_arr  = x0 + np.arange(NX) * DX
     y_arr  = y0 + np.arange(NY) * DY
     x_grid, y_grid = np.meshgrid(x_arr, y_arr)
@@ -183,9 +199,26 @@ def build_om(grib_file, short_name="W_GEW_01"):
     print(f"IDX : {idx_file}")
 
 # -------------------------------
+# Grid-Plausibilität prüfen
+# (optional, zum Debuggen)
+# -------------------------------
+def verify_grid():
+    lon2d, lat2d = get_grid()
+    print("\n--- Grid-Verifikation ---")
+    print(f"  lower-left  : lat={lat2d[0,0]:.4f}  lon={lon2d[0,0]:.4f}  (soll: 46.9526 / 3.5889)")
+    print(f"  lower-right : lat={lat2d[0,-1]:.4f}  lon={lon2d[0,-1]:.4f}")
+    print(f"  upper-left  : lat={lat2d[-1,0]:.4f}  lon={lon2d[-1,0]:.4f}")
+    print(f"  upper-right : lat={lat2d[-1,-1]:.4f}  lon={lon2d[-1,-1]:.4f}")
+    # Mitte sollte grob ~51°N / 10°E sein
+    print(f"  center      : lat={lat2d[450,450]:.4f}  lon={lon2d[450,450]:.4f}  (soll: ~51 / ~10)")
+    print("-------------------------\n")
+
+# -------------------------------
 # Main
 # -------------------------------
 if __name__ == "__main__":
+    verify_grid()  # Plausibilitätscheck beim Start
+
     files = sorted(glob.glob(os.path.join(INPUT_DIR, "*.grb2")))
 
     if not files:
