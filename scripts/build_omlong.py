@@ -25,13 +25,31 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # -------------------------------
 # Raster-Koordinaten berechnen
+# FIX: Kugel a=6370040 statt WGS84-Ellipsoid
+# FIX: Korrekter lower-left corner laut DWD RADOLAN-Doku
 # -------------------------------
 def get_grid():
-    proj_ps  = Proj(proj='stere', lat_0=90, lon_0=10, lat_ts=60,
-                    x_0=0, y_0=0, ellps='WGS84')
-    proj_geo = Proj(proj='latlong', datum='WGS84')
+    # RADOLAN verwendet eine Kugel mit R=6370040 m (kein WGS84-Ellipsoid!)
+    proj_ps  = Proj(
+        proj='stere',
+        lat_0=90,
+        lon_0=10,
+        lat_ts=90,
+        k=0.93301270189,
+        x_0=0,
+        y_0=0,
+        a=6370040,
+        b=6370040,
+        units='m',
+    )
+    proj_geo = Proj(proj='latlong', a=6370040, b=6370040)
     transformer = Transformer.from_proj(proj_ps, proj_geo, always_xy=True)
-    x0, y0 = proj_ps(3.594, 46.957)
+
+    # Offizieller lower-left corner des RADOLAN 900x900 Gitters (DWD-Doku)
+    # lon=3.5889°E, lat=46.9526°N → Stereographisch in Metern
+    x0 = -523462.2   # direkt aus DWD-Doku, kein Umrechnen
+    y0 = -4658645.0
+
     x_arr  = x0 + np.arange(NX) * DX
     y_arr  = y0 + np.arange(NY) * DY
     x_grid, y_grid = np.meshgrid(x_arr, y_arr)
