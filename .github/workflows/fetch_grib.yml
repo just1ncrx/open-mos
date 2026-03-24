@@ -36,13 +36,17 @@ jobs:
       - name: Set DATE & RUN
         id: meta
         run: |
+          HOUR=$(date -u +%H)
+          case $HOUR in
+            07|08|09|11|12) RUN=00 ;;
+            19|20|21|22) RUN=12 ;;
+          esac
           DATE=$(date -u +%Y%m%d)
-          RUN=$(date -u +%H)
+          # set env variables
+          echo "RUN=$RUN" >> $GITHUB_ENV
           echo "DATE=$DATE" >> $GITHUB_ENV
-          echo "RUN=$RUN"   >> $GITHUB_ENV
-          echo "date=$DATE" >> $GITHUB_OUTPUT
-          echo "run=$RUN"   >> $GITHUB_OUTPUT
-          echo "UTC: $DATE  Run: $RUN"
+          # set step output for job output
+          echo "run=$RUN" >> $GITHUB_OUTPUT
 
       - name: Download LUT
         run: |
