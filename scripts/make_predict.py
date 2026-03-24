@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 # Konfiguration
 # -------------------------------------------------------
 date = os.getenv("DATE", "20260324")
-run  = int(os.getenv("RUN", 0))
+run  = int(os.getenv("RUN", 12))
 
 BASE_DIR   = os.path.join("data", "gewitter")
 OUTPUT_DIR = os.path.join("data", "output")
@@ -215,7 +215,8 @@ def process_step_pair(prev_step, step):
         "MU_LI":mu_li,"MU_CAPE":mucape,"MU_CAPE_M10":mu_cape_m10,"SB_WMAX":sb_wmax,
         "CIN":cin,"RHmean":rh_mean,"MU_MIXR":mu_mixr,"ML_MIXR":mu_mixr,
         "ML_LCL":ml_lcl,"ZeroHeight":deg0l,"mcpr":mcpr,
-        "MU_EFF_BS":mu_eff_bs,"MW_13":mw_13,"lsm":lsm
+        "MU_EFF_BS":mu_eff_bs,"MW_13":mw_13,"lsm":lsm,
+        "z_sfc":z_sfc
     }
 
     save_predictors(predictors,lats,lons,prev_step,step)
@@ -223,7 +224,7 @@ def process_step_pair(prev_step, step):
 # -------------------------------------------------------
 # Speichern mit Zeit-Koordinate
 # -------------------------------------------------------
-def save_predictors(predictors,lats,lons,prev_step,step):
+def save_predictors(predictors, lats, lons, prev_step, step):
     outfile = os.path.join(OUTPUT_DIR, f"predictors_{date}_{run:02d}Z_step{prev_step:03d}-{step:03d}.nc")
 
     # Zeit berechnen (hier ersetzen wir den alten Einzeitschicht-Code)
@@ -233,6 +234,7 @@ def save_predictors(predictors,lats,lons,prev_step,step):
         run_time + timedelta(hours=prev_step),
         run_time + timedelta(hours=step)
     ], dtype="datetime64[ns]")
+
 
     ds = xr.Dataset(
         {name: (["time","latitude","longitude"], 
