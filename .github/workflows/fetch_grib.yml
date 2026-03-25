@@ -38,7 +38,7 @@ jobs:
         run: |
           HOUR=$(date -u +%H)
           case $HOUR in
-            07|08|09|11|12|13) RUN=00 ;;
+            07|08|09|11|12|14) RUN=00 ;;
             19|20|21|22) RUN=12 ;;
           esac
           DATE=$(date -u +%Y%m%d)
@@ -75,7 +75,10 @@ jobs:
           python download/download_v_pl.py &
           python download/download_gh_pl.py &
           wait
-          
+
+
+      - name: Validate downlaods
+        run: python download/validate_downloads.py
 
       - name: Process – Prädiktoren berechnen
         run: python scripts/make_predict.py
