@@ -86,7 +86,7 @@ def main():
         except Exception as e:
            if is_throttle_error(e):
                 print(f"  🚦 Rate-limit / Throttle: {e}")
-            else:
+           else:
                 print(f"  ⚠️  Versuch {attempt}/{MAX_RETRIES} Fehler: {e}")
  
         if os.path.exists(TARGET):
