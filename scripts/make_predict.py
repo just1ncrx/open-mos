@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-process_gewitter.py  –  v6 (per-step files)
-Liest ECMWF Open Data aus data/gewitter/<param>/
-Format: param_stepXX.grib2 bzw. param_plLEVEL_stepXX.grib2
+process_gewitter.py  –  v7 (per-step files, steps 6-144)
 """
 
 import os
@@ -20,7 +18,7 @@ BASE_DIR   = os.path.join("data", "gewitter")
 OUTPUT_DIR = os.path.join("data", "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-steps_all = list(range(6, 145, 3))
+steps_all = list(range(6, 145, 3))   # 6, 9, 12, … 144
 
 g   = 9.80665
 rd  = 287.04
@@ -33,25 +31,26 @@ LON_MIN, LON_MAX = -15.0, 35.0
 PRESSURE_LEVELS = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 
 # -------------------------------------------------------
-# Dateipfade  (neu: pro Step)
+# Dateipfade  – {:03d} + z immer step000
 # -------------------------------------------------------
 def sfc_path(param, step):
-    return os.path.join(BASE_DIR, param, f"{param}_step{step:02d}.grib2")
+    if param == "z":
+        return os.path.join(BASE_DIR, "z", "z_step000.grib2")
+    return os.path.join(BASE_DIR, param, f"{param}_step{step:03d}.grib2")
 
 def pl_path(param, level, step):
-    return os.path.join(BASE_DIR, f"{param}_pl", f"{param}_pl{level}_step{step:02d}.grib2")
+    return os.path.join(BASE_DIR, f"{param}_pl", f"{param}_pl{level}_step{step:03d}.grib2")
 
 def file_ok(*paths):
     return all(os.path.exists(p) for p in paths)
 
 # -------------------------------------------------------
-# GRIB lesen  (v6: kein step-Index mehr nötig, direkt 2-D)
+# GRIB lesen
 # -------------------------------------------------------
 _ds_cache = {}
 
 def _open_grib(path, filter_keys=None):
-    key = path
-    if key not in _ds_cache:
+    if path not in _ds_cache:
         kwargs = {"engine": "cfgrib", "backend_kwargs": {"indexpath": ""}}
         if filter_keys:
             kwargs["filter_by_keys"] = filter_keys
@@ -60,19 +59,15 @@ def _open_grib(path, filter_keys=None):
             latitude=slice(LAT_MAX, LAT_MIN),
             longitude=slice(LON_MIN, LON_MAX),
         )
-        _ds_cache[key] = ds
-    return _ds_cache[key]
+        _ds_cache[path] = ds
+    return _ds_cache[path]
 
 
 def read_sfc(param, step):
-    """Liest Oberflächenparameter – eine Datei pro Step → immer 2-D."""
-    # Orographie: nur Step 0 vorhanden
-    actual_step = 0 if param == "z" else step
-    path = sfc_path(param, actual_step)
+    path = sfc_path(param, step)   # z gibt automatisch step000 zurück
     ds   = _open_grib(path)
     var  = list(ds.data_vars)[0]
     da   = ds[var]
-    # Step-Dim entfernen falls vorhanden (manchmal schreibt cfgrib sie trotzdem)
     for dim in ["step", "valid_time", "time"]:
         if dim in da.dims:
             da = da.isel({dim: 0})
@@ -80,8 +75,6 @@ def read_sfc(param, step):
 
 
 def read_pl(param, step):
-    """Liest alle Druckniveaus eines Parameters für einen Step.
-    Liest jede Level-Datei einzeln und stapelt sie."""
     arrays = []
     levels_out = []
     lats = lons = None
@@ -102,10 +95,8 @@ def read_pl(param, step):
             lats = ds["latitude"].values
             lons = ds["longitude"].values
 
-    data   = np.stack(arrays, axis=0)          # (nlev, nlat, nlon)
+    data   = np.stack(arrays, axis=0)
     levels = np.array(levels_out, dtype=float)
-
-    # Aufsteigend sortieren (niedrigster Druck zuerst)
     sort_idx = np.argsort(levels)
     return data[sort_idx], levels[sort_idx], lats, lons
 
@@ -120,17 +111,19 @@ def clear_cache():
 def check_files(prev_step, step):
     missing = []
 
+    # Oberflächenparameter (beide Steps nötig wegen tp-Differenz)
     for param in ["2t", "2d", "sp", "tp", "lsm", "mucape"]:
         for s in [prev_step, step]:
             p = sfc_path(param, s)
             if not os.path.exists(p):
                 missing.append(p)
 
-    # tp brauchen wir für beide Steps (Differenz)
-    # z nur Step 0
-    if not os.path.exists(sfc_path("z", 0)):
-        missing.append(sfc_path("z", 0))
+    # Orographie – immer step000
+    z = sfc_path("z", 0)   # gibt z_step000.grib2
+    if not os.path.exists(z):
+        missing.append(z)
 
+    # Druckniveaus – nur prev_step
     for param in ["t", "q", "r", "u", "v", "gh"]:
         for level in PRESSURE_LEVELS:
             p = pl_path(param, level, prev_step)
@@ -256,7 +249,6 @@ def process_step_pair(prev_step, step):
             print(f"     ... und {len(missing)-5} weitere")
         return
 
-    # --- Felder lesen ---
     t2m,       lats, lons = read_sfc("2t",     prev_step)
     td2m,      _,    _    = read_sfc("2d",     prev_step)
     sp,        _,    _    = read_sfc("sp",     prev_step)
@@ -264,7 +256,7 @@ def process_step_pair(prev_step, step):
     tp1,       _,    _    = read_sfc("tp",     step)
     lsm,       _,    _    = read_sfc("lsm",    prev_step)
     mucape,    _,    _    = read_sfc("mucape", prev_step)
-    z_sfc_geo, _,    _    = read_sfc("z",      0)
+    z_sfc_geo, _,    _    = read_sfc("z",      0)   # → immer z_step000.grib2
     z_sfc = z_sfc_geo / g
 
     t_pl,  levels, _, _ = read_pl("t",  prev_step)
@@ -275,26 +267,24 @@ def process_step_pair(prev_step, step):
     v_pl,  _,      _, _ = read_pl("v",  prev_step)
     z_pl,  _,      _, _ = read_pl("gh", prev_step)
 
-    # --- Prädiktoren berechnen ---
-    rh_mean = calc_mean_rh(r_pl, levels)
-
-    mcpr_raw = np.maximum((tp1 - tp0) / (step - prev_step), 0.0)
+    rh_mean     = calc_mean_rh(r_pl, levels)
+    mcpr_raw    = np.maximum((tp1 - tp0) / (step - prev_step), 0.0)
     cape_weight = np.clip(mucape / 100.0, 0.0, 1.0)
-    mcpr = np.clip(mcpr_raw * cape_weight, 0.0, 0.00296)
+    mcpr        = np.clip(mcpr_raw * cape_weight, 0.0, 0.00296)
 
     print(f"  mcpr roh:          min={mcpr_raw.min():.6f}  max={mcpr_raw.max():.6f} m/h")
     print(f"  mcpr nach Gewicht: min={mcpr.min():.6f}  max={mcpr.max():.6f} m/h")
     print(f"  mcpr >0 Pixel:     {(mcpr > 0).sum()} von {mcpr.size}")
 
-    mu_mixr   = calc_mixr_2m(td2m, sp)
-    ml_lcl    = calc_lcl_height(t2m, td2m)
-    deg0l     = calc_deg0l(t_pl, z_pl, levels)
-    mu_li     = calc_mu_li(t_pl, z_pl, q_pl, levels, t2m, td2m, sp)
-    mu_eff_bs = calc_eff_bulk_shear(z_pl, u_pl, v_pl, z_sfc, mucape)
-    mw_13     = calc_mean_wind_1_3km(z_pl, u_pl, v_pl, z_sfc)
-    sb_wmax   = np.sqrt(np.maximum(2.0 * mucape, 0.0))
+    mu_mixr     = calc_mixr_2m(td2m, sp)
+    ml_lcl      = calc_lcl_height(t2m, td2m)
+    deg0l       = calc_deg0l(t_pl, z_pl, levels)
+    mu_li       = calc_mu_li(t_pl, z_pl, q_pl, levels, t2m, td2m, sp)
+    mu_eff_bs   = calc_eff_bulk_shear(z_pl, u_pl, v_pl, z_sfc, mucape)
+    mw_13       = calc_mean_wind_1_3km(z_pl, u_pl, v_pl, z_sfc)
+    sb_wmax     = np.sqrt(np.maximum(2.0 * mucape, 0.0))
     mu_cape_m10 = np.maximum(mucape * 0.30, 0.0)
-    cin       = np.full_like(t2m, np.nan)
+    cin         = np.full_like(t2m, np.nan)
 
     predictors = {
         "MU_LI":       mu_li,
@@ -315,8 +305,6 @@ def process_step_pair(prev_step, step):
     }
 
     save_predictors(predictors, lats, lons, prev_step, step)
-
-    # Cache nach jedem Step-Paar leeren → RAM kontrollieren
     clear_cache()
 
 # -------------------------------------------------------
@@ -350,7 +338,7 @@ def save_predictors(predictors, lats, lons, prev_step, step):
             "interval_hours": step - prev_step,
             "source":         "ECMWF IFS Open Data",
             "created":        datetime.utcnow().isoformat(),
-            "notes":          "AR-CHaMo Prädiktoren v6 (per-step GRIB, Zeit-Koordinate, 3h Intervall)",
+            "notes":          "AR-CHaMo Prädiktoren v7 (per-step GRIB, steps 6-144)",
         },
     )
     ds.to_netcdf(outfile)
@@ -360,7 +348,7 @@ def save_predictors(predictors, lats, lons, prev_step, step):
 # Hauptprogramm
 # -------------------------------------------------------
 def main():
-    print("=== AR-CHaMo Prädiktor-Berechnung (v6 – per-step GRIB) ===")
+    print("=== AR-CHaMo Prädiktor-Berechnung (v7 – per-step GRIB) ===")
     print(f"Datum: {date}  Lauf: {run:02d} UTC")
     print(f"Eingabe: {BASE_DIR}/")
     print(f"Ausgabe: {OUTPUT_DIR}/")
