@@ -33,7 +33,13 @@ def get_client():
         _local.s3 = boto3.client(
             "s3",
             region_name="eu-central-1",
-            config=Config(signature_version=UNSIGNED)
+            config=Config(
+                signature_version=UNSIGNED,
+                retries={
+                    "max_attempts": 10,
+                    "mode": "adaptive"
+                }
+            )
         )
     return _local.s3
 
@@ -139,7 +145,7 @@ def main():
     print(f"\nStarte {len(all_tasks)} Downloads mit 10 parallelen Threads ...\n")
 
     ok = err = total_bytes = 0
-    with ThreadPoolExecutor(max_workers=10) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         futures = {pool.submit(download_field, gk, fld, op): op
                    for gk, fld, op in all_tasks}
         for future in as_completed(futures):
