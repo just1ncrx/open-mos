@@ -12,7 +12,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # -------------------------------------------------------
 DATE = os.getenv("DATE", "20250604")
 RUN  = f"{int(os.getenv('RUN', 0)):02d}z"   # "00z", "06z", "12z", "18z"
+RUN_HHMM = f"{int(os.getenv('RUN', 0)):02d}0000"  # "000000", "120000" etc.
 BASE = Path("data/gewitter")
+
 
 BUCKET = "ecmwf-forecasts"
 
@@ -41,7 +43,7 @@ def get_client():
 def get_fields_for_step(step):
     step_str = f"{step}h"
     prefix   = f"{DATE}/{RUN}/ifs/0p25/oper"
-    idx_key  = f"{prefix}/{DATE}000000-{step_str}-oper-fc.index"
+    idx_key  = f"{prefix}/{DATE}{RUN_HHMM}-{step_str}-oper-fc.index"
     try:
         s3    = get_client()
         obj   = s3.get_object(Bucket=BUCKET, Key=idx_key)
@@ -75,7 +77,7 @@ def download_field(grib_key, field, out_path):
 # Tasks aufbauen – normale Steps (6-144)
 # -------------------------------------------------------
 def build_download_tasks(fields, step, step_str, prefix):
-    grib_key = f"{prefix}/{DATE}000000-{step_str}-oper-fc.grib2"
+    grib_key = f"{prefix}/{DATE}{RUN_HHMM}-{step_str}-oper-fc.grib2"
     step_tag = f"step{step:03d}"
     tasks    = []
 
@@ -110,7 +112,7 @@ def main():
     print("Lade Orographie (z) von Step 0 ...")
     fields_0, _, prefix_0 = get_fields_for_step(0)
     if fields_0 is not None:
-        grib_key_0 = f"{prefix_0}/{DATE}000000-0h-oper-fc.grib2"
+        grib_key_0 = f"{prefix_0}/{DATE}{RUN_HHMM}-0h-oper-fc.grib2"
         for field in fields_0:
             if field["param"] == "z":
                 out = BASE / "z" / "z_step000.grib2"
