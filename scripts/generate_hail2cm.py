@@ -384,7 +384,7 @@ def main():
         # PNG: hagel_<Ende des Prognosezeitraums in deutscher Ortszeit>.png
         if valid_to is not None:
             vt_de   = _to_de_local(valid_to)
-            outname = f"hagel_{vt_de.strftime('%Y%m%d_%H%M')}.png"
+            outname = f"hail2cm_{vt_de.strftime('%Y%m%d_%H%M')}.png"
         else:
             outname = "hagel_unknown.png"
         outfile = os.path.join(OUT_DIR, outname)
