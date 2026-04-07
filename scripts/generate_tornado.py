@@ -226,7 +226,7 @@ def plot_stp_png(lats, lons, stp, outfile, interval_hours=3,
     run_str = f"TornadoCAST ({run_label}), CRX"
     footer_ax.text(
         0.01, 0.85,
-        f"Significant Tornado Parameter (STP), {interval_hours}Std\n{run_str}",
+        f"Significant Tornado Parameter (STP), 3Std\n{run_str}",
         fontsize=12, fontweight="bold", va="top", ha="left",
     )
     footer_ax.text(
