@@ -106,9 +106,6 @@ jobs:
       - name: Generate metadata
         run: |
           python scripts/generate_metadata.py \
-            pngs/gewitter \
-            pngs/hail2cm \
-            pngs/tornado \
             ${{ needs.strikecast.outputs.run }} \
             ${{ needs.strikecast.outputs.date }}
 
