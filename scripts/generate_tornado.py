@@ -300,7 +300,7 @@ def main():
         # Ausgabepfad
         if valid_to is not None:
             vt_de   = _to_de_local(valid_to)
-            outname = f"stp_{vt_de.strftime('%Y%m%d_%H%M')}.png"
+            outname = f"tornado_{vt_de.strftime('%Y%m%d_%H%M')}.png"
         else:
             outname = "stp_unknown.png"
         outfile = os.path.join(OUT_DIR, outname)
