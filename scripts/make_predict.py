@@ -314,13 +314,21 @@ def process_step_pair(prev_step, step):
     z_pl,  _,      _, _ = read_pl("gh", prev_step)
 
     rh_mean     = calc_mean_rh(r_pl, levels)
-    mcpr_raw    = np.maximum((tp1 - tp0) / (step - prev_step), 0.0)
-    cape_weight = np.clip(mucape / 100.0, 0.0, 1.0)
-    mcpr        = np.clip(mcpr_raw * cape_weight, 0.0, 0.00296)
+    
+    mcpr_raw = np.maximum((tp1 - tp0), 0.0)
 
-    print(f"  mcpr roh:          min={mcpr_raw.min():.6f}  max={mcpr_raw.max():.6f} m/h")
-    print(f"  mcpr nach Gewicht: min={mcpr.min():.6f}  max={mcpr.max():.6f} m/h")
-    print(f"  mcpr >0 Pixel:     {(mcpr > 0).sum()} von {mcpr.size}")
+    idx_500     = np.argmin(np.abs(levels - 500.0))
+    theta_e_sfc = theta_ep_bolton(t2m, sp / 100.0,
+                    np.clip(0.622 * es_buck(td2m) / (sp / 100.0 - es_buck(td2m)), 0.0, 0.06))
+    theta_e_500 = theta_ep_bolton(t_pl[idx_500], 500.0, q_pl[idx_500])
+    dtheta_e    = theta_e_sfc - theta_e_500
+
+    conv_weight = (
+        np.clip(dtheta_e / 20.0,          0.0, 1.0) * 0.4 +
+        np.clip(mucape   / 500.0,         0.0, 1.0) * 0.4 +
+        np.clip((rh_mean - 40.0) / 40.0,  0.0, 1.0) * 0.2
+    )
+    mcpr = np.clip(mcpr_raw * conv_weight, 0.0, 0.00296)
 
     mu_mixr     = calc_mixr_2m(td2m, sp)
     ml_lcl      = calc_lcl_height(t2m, td2m)
