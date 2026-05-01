@@ -59,6 +59,8 @@ jobs:
       - name: Download Z
         run: |
           mkdir -p data/gewitter/z
+          curl -L https://github.com/just1ncrx/StrikeCAST/releases/download/v1.1/z_step000.grib2
+               -o data/gewitter/z/z_step000.grib2
 
       - name: Download ECMWF data
         run: |
